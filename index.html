@@ -64,6 +64,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .btn-add{background:linear-gradient(135deg,#238636,#3fb950);color:#fff;box-shadow:0 3px 12px rgba(35,134,54,.35)}
 .btn-del{background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.25);color:#f85149;padding:4px 10px;font-size:.72rem}
 .btn-del:hover{background:rgba(248,81,73,.2)}
+.btn-edit{background:rgba(56,139,253,.1);border:1px solid rgba(56,139,253,.25);color:#388bfd;padding:4px 10px;font-size:.72rem;border-radius:4px;cursor:pointer}
+.btn-edit:hover{background:rgba(56,139,253,.2)}
 .btn-sync{background:rgba(56,139,253,.12);border:1px solid rgba(56,139,253,.25);color:#58a6ff;padding:6px 14px;font-size:.78rem;border-radius:8px;cursor:pointer;transition:all .2s}
 .btn-sync:hover{background:rgba(56,139,253,.22)}
 
@@ -400,6 +402,7 @@ function renderMonthPanel(m){
     if(d.items.length){
       itemHtml=d.items.map(it=>
         `<span class="tag tag-${it.cat}">${it.cat}</span>¥${it.amount} ${it.desc||''} 
+        <span class="btn-edit" style="cursor:pointer" onclick="editExpense(${m},${it._id})">✎</span>
         <span class="btn-del" style="cursor:pointer" onclick="delExpense(${m},${it._id})">✕</span>`
       ).join('<br>');
     }
@@ -441,6 +444,62 @@ function addExpense(m){
   document.getElementById(`inp-desc-${m}`).value='';
   showToast(`✅ 已记录 ${m+1}月${day}日 ¥${amt} ${cat}`);
   render();
+}
+
+function editExpense(m, id){
+  const data = getMonthData(curYear, m);
+  const rec = data.find(r=>r._id===id);
+  if(!rec) return;
+  // 移除旧弹窗
+  const old = document.getElementById('editModal');
+  if(old) old.remove();
+  // 创建弹窗
+  const modal = document.createElement('div');
+  modal.id = 'editModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `
+    <div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:24px;width:340px;max-width:90vw;color:#e6edf3">
+      <h3 style="margin:0 0 16px;font-size:15px">✎ 编辑记录 — ${curYear}年${m+1}月${rec.day}日</h3>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <label style="font-size:12px;color:#8b949e">金额（元）
+          <input id="editAmt" type="number" value="${rec.amount}" step="0.01" min="0.01" style="width:100%;padding:8px 10px;border:1px solid #30363d;border-radius:6px;background:#0d1117;color:#e6edf3;font-size:14px;margin-top:4px"/>
+        </label>
+        <label style="font-size:12px;color:#8b949e">分类
+          <select id="editCat" style="width:100%;padding:8px 10px;border:1px solid #30363d;border-radius:6px;background:#0d1117;color:#e6edf3;font-size:14px;margin-top:4px">
+            ${CATS.map(c=>`<option value="${c}" ${c===rec.cat?'selected':''}>${c}</option>`).join('')}
+          </select>
+        </label>
+        <label style="font-size:12px;color:#8b949e">描述
+          <input id="editDesc" type="text" value="${rec.desc||''}" placeholder="可选" style="width:100%;padding:8px 10px;border:1px solid #30363d;border-radius:6px;background:#0d1117;color:#e6edf3;font-size:14px;margin-top:4px"/>
+        </label>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+        <button onclick="document.getElementById('editModal').remove()" style="padding:8px 18px;border:1px solid #30363d;border-radius:6px;background:transparent;color:#8b949e;cursor:pointer;font-size:13px">取消</button>
+        <button onclick="saveEdit(${m},${id})" style="padding:8px 18px;border:none;border-radius:6px;background:#388bfd;color:#fff;cursor:pointer;font-size:13px;font-weight:bold">保存</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  // 点击遮罩关闭
+  modal.addEventListener('click', e=>{ if(e.target===modal) modal.remove(); });
+  // 回车保存
+  document.getElementById('editAmt').addEventListener('keydown', e=>{ if(e.key==='Enter') saveEdit(m,id); });
+  document.getElementById('editAmt').focus();
+}
+
+function saveEdit(m, id){
+  const amt = parseFloat(document.getElementById('editAmt').value);
+  const cat = document.getElementById('editCat').value;
+  const desc = document.getElementById('editDesc').value.trim();
+  if(!amt||amt<=0){ showToast('请输入有效金额'); return; }
+  const data = getMonthData(curYear, m);
+  const rec = data.find(r=>r._id===id);
+  if(!rec) return;
+  rec.amount = +amt.toFixed(2);
+  rec.cat = cat;
+  rec.desc = desc;
+  saveDB(); render();
+  document.getElementById('editModal').remove();
+  showToast('✅ 已修改');
 }
 
 function delExpense(m, id){
