@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日常开支预算管理</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'PingFang SC','Helvetica Neue',sans-serif;background:#0d1117;color:#e6edf3;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 10% 20%,rgba(56,139,253,.08) 0,transparent 50%),radial-gradient(ellipse at 90% 80%,rgba(46,160,67,.06) 0,transparent 50%);pointer-events:none;z-index:0}
+
+.app{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+
+/* header */
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.hdr h1{font-size:1.5rem;font-weight:700;background:linear-gradient(135deg,#58a6ff,#3fb950,#d2a8ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.yr-nav{display:flex;align-items:center;gap:10px}
+.yr-nav button{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#e6edf3;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:.85rem;transition:all .2s}
+.yr-nav button:hover{background:rgba(255,255,255,.12)}
+.yr-nav span{font-size:1.1rem;font-weight:700;color:#58a6ff;min-width:50px;text-align:center}
+
+/* year overview */
+.yr-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.yc{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px;text-align:center}
+.yc-val{font-size:1.5rem;font-weight:800}
+.yc-val.blue{color:#58a6ff}.yc-val.green{color:#3fb950}.yc-val.orange{color:#d29922}.yc-val.purple{color:#d2a8ff}
+.yc-lbl{font-size:.72rem;color:#7d8590;margin-top:4px}
+
+/* year bar chart */
+.yr-chart-wrap{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:20px;margin-bottom:24px}
+.yr-chart-wrap h3{font-size:.85rem;color:#8b949e;margin-bottom:16px}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:.78rem}
+.bar-month{width:28px;color:#7d8590;text-align:right;flex-shrink:0}
+.bar-track{flex:1;height:18px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden;position:relative}
+.bar-spend{height:100%;background:linear-gradient(90deg,#388bfd,#58a6ff);border-radius:4px;transition:width .5s ease}
+.bar-save{position:absolute;top:0;height:100%;background:rgba(63,185,80,.35);border-radius:0 4px 4px 0;transition:all .5s}
+.bar-val{width:80px;text-align:right;color:#8b949e;flex-shrink:0}
+
+/* month tabs */
+.month-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px}
+.mtab{padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);color:#8b949e;cursor:pointer;font-size:.78rem;transition:all .2s}
+.mtab:hover{background:rgba(255,255,255,.08);color:#e6edf3}
+.mtab.active{background:rgba(56,139,253,.15);border-color:#388bfd;color:#58a6ff}
+.mtab.has-data{border-color:rgba(63,185,80,.3)}
+
+/* month panel */
+.month-panel{display:none}.month-panel.active{display:block}
+
+/* month summary bar */
+.m-summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px}
+.ms{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:12px;text-align:center}
+.ms-val{font-size:1.2rem;font-weight:700}
+.ms-val.b{color:#58a6ff}.ms-val.g{color:#3fb950}.ms-val.r{color:#f85149}.ms-val.o{color:#d29922}.ms-val.p{color:#d2a8ff}
+.ms-lbl{font-size:.68rem;color:#7d8590;margin-top:3px}
+
+/* add expense */
+.add-row{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
+.add-row input,.add-row select{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;color:#e6edf3;font-size:.82rem;outline:none}
+.add-row input:focus,.add-row select:focus{border-color:#388bfd}
+.inp-day{width:90px}.inp-amt{width:100px}.inp-cat{width:110px}.inp-desc{flex:1;min-width:140px}
+.btn{padding:8px 18px;border-radius:8px;border:none;cursor:pointer;font-size:.82rem;font-weight:600;transition:all .2s}
+.btn:hover{transform:translateY(-1px)}
+.btn-add{background:linear-gradient(135deg,#238636,#3fb950);color:#fff;box-shadow:0 3px 12px rgba(35,134,54,.35)}
+.btn-del{background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.25);color:#f85149;padding:4px 10px;font-size:.72rem}
+.btn-del:hover{background:rgba(248,81,73,.2)}
+.btn-sync{background:rgba(56,139,253,.12);border:1px solid rgba(56,139,253,.25);color:#58a6ff;padding:6px 14px;font-size:.78rem;border-radius:8px;cursor:pointer;transition:all .2s}
+.btn-sync:hover{background:rgba(56,139,253,.22)}
+
+/* day table */
+.day-table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th{text-align:left;padding:9px 10px;color:#7d8590;font-weight:500;border-bottom:1px solid rgba(255,255,255,.07);white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.04);color:#c9d1d9;vertical-align:top}
+tr:hover td{background:rgba(255,255,255,.025)}
+.day-row-hdr td{background:rgba(255,255,255,.03);color:#e6edf3;font-weight:600}
+.day-row-hdr.over td{background:rgba(248,81,73,.06)}
+.day-row-hdr.recalc td{background:rgba(210,169,34,.06)}
+.tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.68rem;font-weight:600;margin-right:3px}
+.tag-餐饮{background:rgba(88,166,255,.15);color:#58a6ff}
+.tag-交通{background:rgba(63,185,80,.15);color:#3fb950}
+.tag-购物{background:rgba(210,169,34,.15);color:#d29922}
+.tag-娱乐{background:rgba(210,168,255,.15);color:#d2a8ff}
+.tag-医疗{background:rgba(248,81,73,.15);color:#f85149}
+.tag-其他{background:rgba(125,133,144,.15);color:#8b949e}
+.surplus-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:.7rem;background:rgba(63,185,80,.15);color:#3fb950}
+.over-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:.7rem;background:rgba(248,81,73,.12);color:#f85149}
+.recalc-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:.7rem;background:rgba(210,169,34,.15);color:#d29922}
+
+/* rules hint */
+.rules-box{background:rgba(56,139,253,.06);border:1px solid rgba(56,139,253,.2);border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:.78rem;color:#8b949e;line-height:1.8}
+.rules-box b{color:#58a6ff}
+
+/* toast */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(60px);background:rgba(35,134,54,.92);color:#fff;padding:10px 24px;border-radius:999px;font-size:.82rem;font-weight:600;transition:transform .3s,opacity .3s;opacity:0;z-index:999;backdrop-filter:blur(10px)}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+@media(max-width:700px){
+  .yr-cards{grid-template-columns:repeat(2,1fr)}
+  .m-summary{grid-template-columns:repeat(3,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- HEADER -->
+<div class="hdr">
+  <h1>💰 日常开支预算管理</h1>
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-sync" onclick="cloudSave()" id="btnCloudSave" title="云端保存">☁️ 云端保存</button>
+      <button class="btn btn-sync" onclick="cloudLoad()" id="btnCloudLoad" title="云端加载">⬇️ 云端加载</button>
+      <button class="btn btn-sync" onclick="resetGistConfig()" title="配置">⚙️ 配置</button>
+      <button class="btn btn-sync" onclick="exportData()" title="导出数据到文件">📤 导出</button>
+      <button class="btn btn-sync" onclick="document.getElementById('importFile').click()" title="从文件导入数据">📥 导入</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)"/>
+    </div>
+    <div class="yr-nav">
+      <button onclick="changeYear(-1)">‹</button>
+      <span id="yrLabel">2026</span>
+      <button onclick="changeYear(1)">›</button>
+    </div>
+  </div>
+</div>
+
+<!-- RULES -->
+<div class="rules-box">
+  <b>预算规则：</b>
+  每日预算 <b>¥200</b>　·　超支部分顺延至次日扣减　·　当日节余自动进入<b>结余池</b>（用于当月大额支出）　·　
+  <b>连续3天超支</b> → 从第4天起用当月剩余天数重新均摊可用预算　·　结余池当月清零，不进入次月
+</div>
+
+<!-- YEAR OVERVIEW -->
+<div class="yr-cards">
+  <div class="yc"><div class="yc-val blue" id="yr-budget">¥0</div><div class="yc-lbl">全年总预算</div></div>
+  <div class="yc"><div class="yc-val orange" id="yr-spend">¥0</div><div class="yc-lbl">全年实际消费</div></div>
+  <div class="yc"><div class="yc-val green" id="yr-save">¥0</div><div class="yc-lbl">全年结余留存</div></div>
+  <div class="yc"><div class="yc-val purple" id="yr-rate">0%</div><div class="yc-lbl">结余率</div></div>
+</div>
+
+<!-- YEAR BAR CHART -->
+<div class="yr-chart-wrap">
+  <h3>月度消费 vs 结余（蓝=消费 / 绿=结余）</h3>
+  <div id="yrChart"></div>
+</div>
+
+<!-- MONTH TABS -->
+<div class="month-tabs" id="monthTabs"></div>
+
+<!-- MONTH PANELS -->
+<div id="monthPanels"></div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  CONSTANTS & STATE
+// ═══════════════════════════════════════════════
+const DAILY = 200;
+const MONTHS_CN = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+const CATS = ['餐饮','交通','购物','娱乐','医疗','其他'];
+
+let curYear = new Date().getFullYear();
+let curMonth = new Date().getMonth(); // 0-based
+
+// data shape: { [year]: { [month0-11]: [ {day, amount, cat, desc} ] } }
+let DB = loadDB();
+
+// ═══════════════════════════════════════════════
+//  STORAGE
+// ═══════════════════════════════════════════════
+function loadDB(){ return JSON.parse(localStorage.getItem('budget_db') || '{}'); }
+function saveDB(){ localStorage.setItem('budget_db', JSON.stringify(DB)); }
+function getMonthData(y,m){
+  if(!DB[y]) DB[y]={};
+  if(!DB[y][m]) DB[y][m]=[];
+  return DB[y][m];
+}
+
+// ═══════════════════════════════════════════════
+//  DAYS IN MONTH
+// ═══════════════════════════════════════════════
+function daysInMonth(y,m){ return new Date(y,m+1,0).getDate(); }
+
+// ═══════════════════════════════════════════════
+//  CORE BUDGET ENGINE
+//  Returns array of dayCalc objects for every day in month
+// ═══════════════════════════════════════════════
+function calcMonth(y, m){
+  const total = daysInMonth(y, m);
+  const records = getMonthData(y, m);
+  
+  // group expenses by day
+  const byDay = {};
+  for(const r of records){
+    if(!byDay[r.day]) byDay[r.day] = [];
+    byDay[r.day].push(r);
+  }
+
+  const days = [];
+  let carry = 0;       // 上日超支顺延（正=欠债，负=不可能）
+  let surplusPool = 0; // 当月结余池
+  let overStreak = 0;  // 连续超支天数
+  let dailyBudget = DAILY; // 可能因重算而改变
+  let recalcFrom = -1; // 触发重算的起始天(1-based)
+  let remaining = total * DAILY; // 月总预算追踪（重算用）
+
+  for(let d = 1; d <= total; d++){
+    const spent = (byDay[d] || []).reduce((s,r) => s + r.amount, 0);
+    
+    // 当日可用额度 = 当日预算 - carry
+    const avail = +(dailyBudget - carry).toFixed(2);
+    const diff  = +(avail - spent).toFixed(2); // 正=节余，负=超支
+
+    let dayOver = 0, daySurplus = 0, nextCarry = 0, isRecalc = false;
+
+    if(diff < 0){
+      // 超支
+      dayOver = +(-diff).toFixed(2);
+      nextCarry = dayOver;
+      overStreak++;
+    } else {
+      // 节余或刚好
+      daySurplus = diff;
+      surplusPool = +(surplusPool + daySurplus).toFixed(2);
+      nextCarry = 0;
+      overStreak = 0;
+    }
+
+    // 连续3天超支触发重算（第3天结束后，第4天起重算）
+    if(overStreak >= 3 && d < total){
+      // 计算从 d+1 到 total 的剩余天数
+      const remDays = total - d;
+      // 已消费预算 = 前d天的总预算分配（近似：DAILY*d）
+      // 剩余可用 = 总月预算 - 前d天实际花费 - carry(未偿还的欠)
+      const totalMonthBudget = total * DAILY;
+      const spentSoFar = days.reduce((s,dd) => s + dd.spent, 0) + spent;
+      const remBudget = +(totalMonthBudget - spentSoFar - nextCarry).toFixed(2);
+      dailyBudget = remBudget > 0 ? +(remBudget / remDays).toFixed(2) : 0;
+      carry = 0; // carry折算进新预算
+      nextCarry = 0;
+      overStreak = 0;
+      recalcFrom = d + 1;
+      isRecalc = true; // 标记本天是触发天
+    }
+
+    days.push({
+      day: d,
+      spent,
+      avail,
+      diff,
+      dayOver,
+      daySurplus,
+      overStreak: overStreak > 0 ? overStreak : 0,
+      isRecalc,
+      recalcFrom,
+      dailyBudget,
+      surplusPool: +(surplusPool),
+      items: byDay[d] || []
+    });
+
+    carry = nextCarry;
+  }
+
+  return days;
+}
+
+// ═══════════════════════════════════════════════
+//  MONTH STATS
+// ═══════════════════════════════════════════════
+function monthStats(y, m){
+  const days = calcMonth(y, m);
+  const totalDays = daysInMonth(y, m);
+  const budget = totalDays * DAILY;
+  const spent = +days.reduce((s,d) => s + d.spent, 0).toFixed(2);
+  const surplusPool = days.length ? days[days.length-1].surplusPool : 0;
+  const saved = +(budget - spent).toFixed(2);
+  return { budget, spent, saved, surplusPool, days };
+}
+
+// ═══════════════════════════════════════════════
+//  YEAR STATS
+// ═══════════════════════════════════════════════
+function yearStats(y){
+  let totalBudget=0, totalSpent=0, totalSaved=0;
+  const monthly=[];
+  for(let m=0;m<12;m++){
+    const s = monthStats(y,m);
+    const days = daysInMonth(y,m);
+    totalBudget += days*DAILY;
+    totalSpent  += s.spent;
+    totalSaved  += s.saved;
+    monthly.push({m, budget:days*DAILY, spent:s.spent, saved:s.saved});
+  }
+  return {totalBudget,totalSpent,totalSaved,monthly};
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════
+function render(){
+  renderYear();
+  renderMonthTabs();
+  renderMonthPanel(curMonth);
+}
+
+function renderYear(){
+  const ys = yearStats(curYear);
+  document.getElementById('yrLabel').textContent = curYear;
+  document.getElementById('yr-budget').textContent = '¥'+ys.totalBudget.toLocaleString();
+  document.getElementById('yr-spend').textContent  = '¥'+ys.totalSpent.toLocaleString();
+  document.getElementById('yr-save').textContent   = '¥'+ys.totalSaved.toLocaleString();
+  const rate = ys.totalBudget>0 ? (ys.totalSaved/ys.totalBudget*100).toFixed(1)+'%' : '0%';
+  document.getElementById('yr-rate').textContent   = rate;
+
+  // bar chart
+  const maxVal = Math.max(...ys.monthly.map(r=>r.budget), 1);
+  let html='';
+  for(const r of ys.monthly){
+    const spendW = Math.min(100, r.spent/maxVal*100).toFixed(1);
+    const saveW  = r.saved>0 ? Math.min(100-spendW, r.saved/maxVal*100).toFixed(1) : 0;
+    html+=`<div class="bar-row">
+      <div class="bar-month">${r.m+1}月</div>
+      <div class="bar-track">
+        <div class="bar-spend" style="width:${spendW}%"></div>
+        <div class="bar-save"  style="left:${spendW}%;width:${saveW}%"></div>
+      </div>
+      <div class="bar-val">¥${r.spent.toLocaleString()} / <span style="color:#3fb950">¥${Math.max(0,r.saved).toLocaleString()}</span></div>
+    </div>`;
+  }
+  document.getElementById('yrChart').innerHTML=html;
+}
+
+function renderMonthTabs(){
+  const tabs = document.getElementById('monthTabs');
+  tabs.innerHTML='';
+  for(let m=0;m<12;m++){
+    const hasData = getMonthData(curYear,m).length>0;
+    const btn=document.createElement('div');
+    btn.className='mtab'+(m===curMonth?' active':'')+(hasData?' has-data':'');
+    btn.textContent=MONTHS_CN[m];
+    btn.onclick=()=>{ curMonth=m; render(); };
+    tabs.appendChild(btn);
+  }
+}
+
+function renderMonthPanel(m){
+  const panels = document.getElementById('monthPanels');
+  const stats = monthStats(curYear, m);
+  const days  = stats.days;
+  const totalDays = daysInMonth(curYear, m);
+
+  // summary
+  let html=`
+  <div class="m-summary">
+    <div class="ms"><div class="ms-val b">¥${stats.budget.toLocaleString()}</div><div class="ms-lbl">月度总预算</div></div>
+    <div class="ms"><div class="ms-val r">¥${stats.spent.toLocaleString()}</div><div class="ms-lbl">月度实际消费</div></div>
+    <div class="ms"><div class="ms-val g">¥${Math.max(0,stats.saved).toLocaleString()}</div><div class="ms-lbl">月度结余</div></div>
+    <div class="ms"><div class="ms-val o">¥${stats.surplusPool.toFixed(2)}</div><div class="ms-lbl">结余池（可用大额）</div></div>
+    <div class="ms"><div class="ms-val p">${totalDays}天</div><div class="ms-lbl">本月天数</div></div>
+  </div>`;
+
+  // add form
+  const today = new Date();
+  const defaultDay = (curYear===today.getFullYear()&&m===today.getMonth()) ? today.getDate() : 1;
+  html+=`
+  <div class="add-row">
+    <input class="inp-day" type="number" id="inp-day-${m}" value="${defaultDay}" min="1" max="${totalDays}" placeholder="日"/>
+    <input class="inp-amt" type="number" id="inp-amt-${m}" placeholder="金额(¥)" min="0.01" step="0.01"/>
+    <select class="inp-cat" id="inp-cat-${m}">${CATS.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
+    <input class="inp-desc" type="text" id="inp-desc-${m}" placeholder="描述（可选）"/>
+    <button class="btn btn-add" onclick="addExpense(${m})">+ 记录</button>
+  </div>`;
+
+  // day table
+  html+=`<div class="day-table-wrap"><table>
+  <thead><tr>
+    <th>日期</th><th>当日预算</th><th>可用额度</th><th>实际消费</th><th>节余/超支</th><th>结余池</th><th>状态</th><th>支出明细</th>
+  </tr></thead><tbody>`;
+
+  for(const d of days){
+    const isToday = (curYear===new Date().getFullYear()&&m===new Date().getMonth()&&d.day===new Date().getDate());
+    let rowClass='';
+    if(d.diff<0) rowClass='day-row-hdr over';
+    else if(d.isRecalc) rowClass='day-row-hdr recalc';
+    else if(d.items.length>0||d.day<new Date().getDate()||(curYear<new Date().getFullYear())||(m<new Date().getMonth()&&curYear===new Date().getFullYear())) rowClass='day-row-hdr';
+
+    // status badge
+    let badge='';
+    if(d.diff<0) badge=`<span class="over-badge">超支 ¥${d.dayOver}</span>`;
+    else if(d.isRecalc) badge=`<span class="recalc-badge">触发重算</span>`;
+    else if(d.diff>0&&d.items.length>0) badge=`<span class="surplus-badge">节余 ¥${d.diff.toFixed(2)}</span>`;
+    if(isToday) badge+=' <span style="color:#58a6ff;font-size:.7rem">今天</span>';
+
+    // items
+    let itemHtml='<span style="color:#444c56">—</span>';
+    if(d.items.length){
+      itemHtml=d.items.map(it=>
+        `<span class="tag tag-${it.cat}">${it.cat}</span>¥${it.amount} ${it.desc||''} 
+        <span class="btn-del" style="cursor:pointer" onclick="delExpense(${m},${it._id})">✕</span>`
+      ).join('<br>');
+    }
+
+    const dateStr = `${curYear}-${String(m+1).padStart(2,'0')}-${String(d.day).padStart(2,'0')}`;
+    html+=`<tr class="${rowClass}">
+      <td>${dateStr}${d.day===1?'<br><span style="font-size:.65rem;color:#7d8590">月初</span>':''}</td>
+      <td>¥${d.dailyBudget.toFixed(2)}</td>
+      <td>¥${d.avail.toFixed(2)}</td>
+      <td>${d.spent>0?'¥'+d.spent.toFixed(2):'<span style="color:#444c56">—</span>'}</td>
+      <td>${d.diff>=0?'<span style="color:#3fb950">+¥'+d.diff.toFixed(2)+'</span>':'<span style="color:#f85149">-¥'+Math.abs(d.diff).toFixed(2)+'</span>'}</td>
+      <td><span style="color:#d29922">¥${d.surplusPool.toFixed(2)}</span></td>
+      <td>${badge}</td>
+      <td>${itemHtml}</td>
+    </tr>`;
+  }
+
+  html+='</tbody></table></div>';
+  panels.innerHTML=html;
+}
+
+// ═══════════════════════════════════════════════
+//  ACTIONS
+// ═══════════════════════════════════════════════
+function addExpense(m){
+  const day  = parseInt(document.getElementById(`inp-day-${m}`).value);
+  const amt  = parseFloat(document.getElementById(`inp-amt-${m}`).value);
+  const cat  = document.getElementById(`inp-cat-${m}`).value;
+  const desc = document.getElementById(`inp-desc-${m}`).value.trim();
+
+  if(!day||day<1||day>daysInMonth(curYear,m)){ showToast('请输入有效日期'); return; }
+  if(!amt||amt<=0){ showToast('请输入有效金额'); return; }
+
+  const data = getMonthData(curYear, m);
+  const id   = Date.now();
+  data.push({ day, amount:+amt.toFixed(2), cat, desc, _id:id });
+  saveDB();
+  document.getElementById(`inp-amt-${m}`).value='';
+  document.getElementById(`inp-desc-${m}`).value='';
+  showToast(`✅ 已记录 ${m+1}月${day}日 ¥${amt} ${cat}`);
+  render();
+}
+
+function delExpense(m, id){
+  if(!confirm('确认删除这条记录？')) return;
+  const data = getMonthData(curYear, m);
+  const idx  = data.findIndex(r=>r._id===id);
+  if(idx>-1){ data.splice(idx,1); saveDB(); render(); showToast('已删除'); }
+}
+
+function changeYear(d){
+  curYear += d;
+  render();
+}
+
+// ═══════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ═══════════════════════════════════════════════
+//  CLOUD SYNC (GitHub Gist)
+// ═══════════════════════════════════════════════
+const GIST_KEY = 'budget_gist';
+const GIST_FILE = 'budget_data.json';
+
+function getGistId(){ return localStorage.getItem(GIST_KEY) || ''; }
+function setGistId(id){ localStorage.setItem(GIST_KEY, id); }
+
+function setupGist(isReset){
+  const oldToken = isReset ? '' : (localStorage.getItem('budget_gist_token') || '');
+  const oldGistId = isReset ? '' : getGistId();
+  const token = prompt(
+    (isReset ? '🔧 重新配置云端\n\n' : '') +
+    '请输入 GitHub Personal Access Token（需要 gist 权限）\n\n获取方式：\n1. 打开 github.com/settings/tokens\n2. 点 Generate new token (classic)\n3. 勾选 gist 权限\n4. 生成后复制粘贴到此处',
+    oldToken);
+  if(!token) return false;
+  localStorage.setItem('budget_gist_token', token);
+  const gistId = prompt('请输入 Gist ID（如果已有则填入，没有则留空会自动创建）：', oldGistId);
+  if(gistId && gistId.trim()){ setGistId(gistId.trim()); } else { setGistId(''); }
+  showToast(isReset ? '⚙️ 配置已更新' : '✅ 配置完成');
+  return true;
+}
+
+function resetGistConfig(){
+  const hasConfig = localStorage.getItem('budget_gist_token') || getGistId();
+  const msg = hasConfig
+    ? `当前配置：\nGist ID: ${getGistId() || '未设置'}\nToken: ${localStorage.getItem('budget_gist_token') ? '已设置 ✓' : '未设置'}\n\n点确定重新配置，取消不变`
+    : '尚未配置云端，点确定开始配置';
+  if(!confirm(msg)) return;
+  setupGist(true);
+}
+
+async function cloudSave(){
+  const token = localStorage.getItem('budget_gist_token');
+  if(!token){ if(!setupGist()) return; }
+  const btn = document.getElementById('btnCloudSave');
+  btn.disabled = true; btn.textContent = '⏳ 保存中...';
+  try {
+    const gistId = getGistId();
+    const ts = new Date().toISOString().slice(0,19).replace('T',' ');
+    const content = { data: DB, lastSave: ts, version: '1.0' };
+    if(gistId){
+      const res = await fetch('https://api.github.com/gists/' + gistId, {
+        method: 'PATCH',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: '日常开支预算管理 - ' + ts, files: { [GIST_FILE]: { content: JSON.stringify(content, null, 2) } } })
+      });
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+    } else {
+      const res = await fetch('https://api.github.com/gists', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: '日常开支预算管理', public: false, files: { [GIST_FILE]: { content: JSON.stringify(content, null, 2) } } })
+      });
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const result = await res.json();
+      setGistId(result.id);
+    }
+    showToast('☁️ 数据已保存到云端！' + new Date().toLocaleTimeString());
+  } catch(err){
+    showToast('❌ 云端保存失败：' + err.message);
+    if(err.message.includes('401') || err.message.includes('403')){
+      localStorage.removeItem('budget_gist_token');
+      showToast('❌ Token 已失效，请重新配置');
+    }
+  } finally { btn.disabled = false; btn.textContent = '☁️ 云端保存'; }
+}
+
+async function cloudLoad(){
+  const gistId = getGistId();
+  const token = localStorage.getItem('budget_gist_token');
+  if(!gistId || !token){ if(!setupGist()) return; }
+  const useGistId = getGistId();
+  if(!useGistId){ showToast('❌ 还没有云端数据，请先保存一次'); return; }
+  const btn = document.getElementById('btnCloudLoad');
+  btn.disabled = true; btn.textContent = '⏳ 加载中...';
+  try {
+    const res = await fetch('https://api.github.com/gists/' + useGistId, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const gist = await res.json();
+    const file = gist.files[GIST_FILE];
+    if(!file) throw new Error('Gist 中没有找到数据文件');
+    const cloud = JSON.parse(file.content);
+    if(!cloud.data){ throw new Error('数据格式不正确'); }
+
+    // 计算云端记录数
+    let cloudCount = 0;
+    for(const yr of Object.keys(cloud.data)){
+      for(const mo of Object.keys(cloud.data[yr])){
+        cloudCount += (cloud.data[yr][mo] || []).length;
+      }
+    }
+    let localCount = 0;
+    for(const yr of Object.keys(DB)){
+      for(const mo of Object.keys(DB[yr])){
+        localCount += (DB[yr][mo] || []).length;
+      }
+    }
+
+    const action = confirm(
+      `云端数据：${cloudCount}条记录，最后保存 ${cloud.lastSave || '未知'}\n` +
+      `本地数据：${localCount}条记录\n\n` +
+      `确定 = 合并（保留本地+导入云端新增）\n` +
+      `取消 = 替换（使用云端数据覆盖本地）`
+    );
+
+    if(action){
+      for(const yr of Object.keys(cloud.data)){
+        if(!DB[yr]) DB[yr]={};
+        for(const mo of Object.keys(cloud.data[yr])){
+          if(!DB[yr][mo]) DB[yr][mo]=[];
+          const existing = new Set(DB[yr][mo].map(r=>r._id));
+          for(const rec of cloud.data[yr][mo]){
+            if(!existing.has(rec._id)) DB[yr][mo].push(rec);
+          }
+        }
+      }
+      saveDB(); render();
+      showToast('☁️ 合并完成，已同步云端数据');
+    } else {
+      DB = cloud.data;
+      saveDB(); render();
+      showToast('☁️ 已从云端恢复数据');
+    }
+  } catch(err){
+    showToast('❌ 云端加载失败：' + err.message);
+  } finally { btn.disabled = false; btn.textContent = '⬇️ 云端加载'; }
+}
+
+// ═══════════════════════════════════════════════
+//  DATA SYNC (Export / Import)
+// ═══════════════════════════════════════════════
+function exportData(){
+  const data = JSON.stringify(DB, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `budget-backup-${curYear}-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('📤 数据已导出，保存好这个文件可跨设备同步');
+}
+
+function importData(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    try {
+      const imported = JSON.parse(ev.target.result);
+      if(typeof imported !== 'object' || imported === null){
+        showToast('❌ 文件格式不正确'); return;
+      }
+      // merge: 保留当前数据，导入的数据覆盖/追加
+      const action = confirm('选择导入方式：\n\n确定 = 合并（保留现有+导入新增）\n取消 = 替换（清空现有，使用导入数据）');
+      if(action){
+        // merge
+        for(const yr of Object.keys(imported)){
+          if(!DB[yr]) DB[yr]={};
+          for(const mo of Object.keys(imported[yr])){
+            if(!DB[yr][mo]) DB[yr][mo]=[];
+            const existing = new Set(DB[yr][mo].map(r=>r._id));
+            for(const rec of imported[yr][mo]){
+              if(!existing.has(rec._id)){
+                DB[yr][mo].push(rec);
+              }
+            }
+          }
+        }
+      } else {
+        // replace
+        DB = imported;
+      }
+      saveDB();
+      render();
+      showToast('✅ 数据导入成功！');
+    } catch(err){
+      showToast('❌ 读取失败：'+err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = ''; // reset so same file can be re-imported
+}
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+render();
+</script>
+</body>
+</html>
