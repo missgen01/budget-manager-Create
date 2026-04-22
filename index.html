@@ -383,7 +383,7 @@ function renderMonthPanel(m){
   // day table
   html+=`<div class="day-table-wrap"><table>
   <thead><tr>
-    <th>日期</th><th>当日预算</th><th>可用额度</th><th>实际消费</th><th>节余/超支</th><th>结余池</th><th>状态</th><th>支出明细</th>
+    <th>日期</th><th>当日预算</th><th>可用额度</th><th>实际消费</th><th>节余/超支</th><th>结余池</th><th>状态</th><th>支出明细</th><th style="width:60px">操作</th>
   </tr></thead><tbody id="tbody-${m}">`;
 
   let futureHtml = '';
@@ -407,16 +407,25 @@ function renderMonthPanel(m){
     else if(d.diff>0&&d.items.length>0) badge=`<span class="surplus-badge">节余 ¥${d.diff.toFixed(2)}</span>`;
     if(isToday) badge+=' <span style="color:#58a6ff;font-size:.7rem">今天</span>';
 
-    // items
+    // items (只显示内容，不放操作按钮)
     let itemHtml='';
     if(d.items.length){
       itemHtml=d.items.map(it=>
-        `<span class="tag tag-${it.cat}">${it.cat}</span>¥${it.amount} ${it.desc||''} 
-        <span class="btn-edit" style="cursor:pointer" onclick="editExpense(${m},${it._id})">✎</span>
-        <span class="btn-del" style="cursor:pointer" onclick="delExpense(${m},${it._id})">✕</span>`
+        `<span class="tag tag-${it.cat}">${it.cat}</span>¥${it.amount} ${it.desc||''}`
       ).join('<br>');
     } else {
-      itemHtml=`<span class="btn-add-quick" style="cursor:pointer;color:#388bfd;font-size:.75rem" onclick="quickAdd(${m},${d.day})">+ 录入</span>`;
+      itemHtml='<span style="color:#444c56">—</span>';
+    }
+
+    // 操作列（独立一列，统一放按钮）
+    let opHtml='';
+    if(d.items.length){
+      opHtml = d.items.map(it=>
+        `<div style="margin-bottom:4px"><span class="btn-edit" onclick="editExpense(${m},${it._id})">✎</span> <span class="btn-del" onclick="delExpense(${m},${it._id})">✕</span></div>`
+      ).join('');
+      opHtml += `<div><span class="btn-add-quick" style="color:#388bfd;font-size:.72rem;cursor:pointer" onclick="quickAdd(${m},${d.day})">+ 录入</span></div>`;
+    } else {
+      opHtml = `<span class="btn-add-quick" style="color:#388bfd;font-size:.72rem;cursor:pointer" onclick="quickAdd(${m},${d.day})">+ 录入</span>`;
     }
 
     const dateStr = `${curYear}-${String(m+1).padStart(2,'0')}-${String(d.day).padStart(2,'0')}`;
@@ -429,6 +438,7 @@ function renderMonthPanel(m){
       <td><span style="color:#d29922">¥${d.surplusPool.toFixed(2)}</span></td>
       <td>${badge}</td>
       <td>${itemHtml}</td>
+      <td>${opHtml}</td>
     </tr>`;
 
     if(isFuture){
@@ -445,7 +455,7 @@ function renderMonthPanel(m){
   if(hasFuture){
     html += `<button class="future-toggle" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'table':'none';this.textContent=this.nextElementSibling.style.display==='none'?'📅 展开未来日期（预算预览）':'📅 收起未来日期'">📅 展开未来日期（预算预览）</button>`;
     html += `<div class="day-table-wrap" style="margin-top:4px"><table><thead><tr>
-      <th>日期</th><th>当日预算</th><th>可用额度</th><th>实际消费</th><th>节余/超支</th><th>结余池</th><th>状态</th><th>支出明细</th>
+      <th>日期</th><th>当日预算</th><th>可用额度</th><th>实际消费</th><th>节余/超支</th><th>结余池</th><th>状态</th><th>支出明细</th><th style="width:60px">操作</th>
     </tr></thead><tbody class="future-rows">${futureHtml}</tbody></table></div>`;
   }
 
