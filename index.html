@@ -66,6 +66,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .btn-del:hover{background:rgba(248,81,73,.2)}
 .btn-edit{background:rgba(56,139,253,.1);border:1px solid rgba(56,139,253,.25);color:#388bfd;padding:4px 10px;font-size:.72rem;border-radius:4px;cursor:pointer}
 .btn-edit:hover{background:rgba(56,139,253,.2)}
+.future-toggle{display:block;width:100%;padding:10px;background:rgba(56,139,253,.08);border:1px dashed rgba(56,139,253,.25);border-radius:8px;color:#388bfd;font-size:.82rem;cursor:pointer;margin-top:6px}
+.future-toggle:hover{background:rgba(56,139,253,.15)}
+.future-rows{display:none}
 .btn-sync{background:rgba(56,139,253,.12);border:1px solid rgba(56,139,253,.25);color:#58a6ff;padding:6px 14px;font-size:.78rem;border-radius:8px;cursor:pointer;transition:all .2s}
 .btn-sync:hover{background:rgba(56,139,253,.22)}
 
@@ -381,10 +384,17 @@ function renderMonthPanel(m){
   html+=`<div class="day-table-wrap"><table>
   <thead><tr>
     <th>日期</th><th>当日预算</th><th>可用额度</th><th>实际消费</th><th>节余/超支</th><th>结余池</th><th>状态</th><th>支出明细</th>
-  </tr></thead><tbody>`;
+  </tr></thead><tbody id="tbody-${m}">`;
+
+  let futureHtml = '';
+  let hasFuture = false;
+  const nowDate = new Date();
+  const todayNum = (curYear===nowDate.getFullYear()&&m===nowDate.getMonth()) ? nowDate.getDate() : 999;
 
   for(const d of days){
-    const isToday = (curYear===new Date().getFullYear()&&m===new Date().getMonth()&&d.day===new Date().getDate());
+    const isToday = (curYear===nowDate.getFullYear()&&m===nowDate.getMonth()&&d.day===nowDate.getDate());
+    const isFuture = d.day > todayNum;
+    if(isFuture) hasFuture = true;
     let rowClass='';
     if(d.diff<0) rowClass='day-row-hdr over';
     else if(d.isRecalc) rowClass='day-row-hdr recalc';
@@ -410,7 +420,7 @@ function renderMonthPanel(m){
     }
 
     const dateStr = `${curYear}-${String(m+1).padStart(2,'0')}-${String(d.day).padStart(2,'0')}`;
-    html+=`<tr class="${rowClass}">
+    const rowHtml = `<tr class="${rowClass}"${isFuture?' style="opacity:.55"':''}>
       <td>${dateStr}${d.day===1?'<br><span style="font-size:.65rem;color:#7d8590">月初</span>':''}</td>
       <td>¥${d.dailyBudget.toFixed(2)}</td>
       <td>¥${d.avail.toFixed(2)}</td>
@@ -420,9 +430,25 @@ function renderMonthPanel(m){
       <td>${badge}</td>
       <td>${itemHtml}</td>
     </tr>`;
+
+    if(isFuture){
+      futureHtml += rowHtml;
+    } else {
+      html += rowHtml;
+    }
   }
 
-  html+='</tbody></table></div>';
+  // 关闭当前月的 tbody + table
+  html += '</tbody></table></div>';
+
+  // 未来日期折叠区
+  if(hasFuture){
+    html += `<button class="future-toggle" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'table':'none';this.textContent=this.nextElementSibling.style.display==='none'?'📅 展开未来日期（预算预览）':'📅 收起未来日期'">📅 展开未来日期（预算预览）</button>`;
+    html += `<div class="day-table-wrap" style="margin-top:4px"><table><thead><tr>
+      <th>日期</th><th>当日预算</th><th>可用额度</th><th>实际消费</th><th>节余/超支</th><th>结余池</th><th>状态</th><th>支出明细</th>
+    </tr></thead><tbody class="future-rows">${futureHtml}</tbody></table></div>`;
+  }
+
   panels.innerHTML=html;
 }
 
