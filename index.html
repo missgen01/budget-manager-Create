@@ -423,10 +423,14 @@ function renderMonthPanel(m){
       opHtml = d.items.map(it=>
         `<div style="margin-bottom:4px"><span class="btn-edit" onclick="editExpense(${m},${it._id})">✎</span> <span class="btn-del" onclick="delExpense(${m},${it._id})">✕</span></div>`
       ).join('');
-      opHtml += `<div><span class="btn-add-quick" style="color:#388bfd;font-size:.72rem;cursor:pointer" onclick="quickAdd(${m},${d.day})">+ 录入</span></div>`;
     } else {
-      opHtml = `<span class="btn-add-quick" style="color:#388bfd;font-size:.72rem;cursor:pointer" onclick="quickAdd(${m},${d.day})">+ 录入</span>`;
+      opHtml = `<span style="color:#444c56;font-size:.7rem">无记录</span>`;
     }
+    // 始终显示录入 + 清除按钮
+    opHtml += `<div style="margin-top:4px">
+      <span class="btn-add-quick" style="color:#388bfd;font-size:.72rem;cursor:pointer" onclick="quickAdd(${m},${d.day})">+ 录入</span>
+      ${d.items.length ? `<span class="btn-del" style="margin-left:6px" onclick="clearDay(${m},${d.day})" title="清除当天所有记录">清空</span>` : ''}
+    </div>`;
 
     const dateStr = `${curYear}-${String(m+1).padStart(2,'0')}-${String(d.day).padStart(2,'0')}`;
     const rowHtml = `<tr class="${rowClass}"${isFuture?' style="opacity:.55"':''}>
@@ -591,6 +595,16 @@ function delExpense(m, id){
   const data = getMonthData(curYear, m);
   const idx  = data.findIndex(r=>r._id===id);
   if(idx>-1){ data.splice(idx,1); saveDB(); render(); showToast('已删除'); }
+}
+
+function clearDay(m, day){
+  const data = getMonthData(curYear, m);
+  const dayItems = data.filter(r=>r.day===day);
+  if(!dayItems.length){ showToast('该日没有记录'); return; }
+  if(!confirm(`确认清除 ${m+1}月${day}日 的全部 ${dayItems.length} 条记录？`)) return;
+  DB[curYear][m] = data.filter(r=>r.day!==day);
+  saveDB(); render();
+  showToast(`已清除 ${m+1}月${day}日 的所有记录`);
 }
 
 function changeYear(d){
